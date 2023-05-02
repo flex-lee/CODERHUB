@@ -1,3 +1,6 @@
+const fs = require("fs");
+const { AVATAR_IS_NOT_EXISTS } = require("../config/errorConstant");
+const { UPLOAD_PATH } = require("../config/pathConstant");
 const userService = require("../service/user.service");
 
 // 执行控制器
@@ -5,31 +8,6 @@ class UserController {
   async create(ctx, next) {
     // 1.获取用户传递过来的信息
     const user = ctx.request.body;
-    
-    /**@将这部分代码单独分离出去
-     * 
-     * // 2. 验证客户端传递过来的user的值是否可以存入数据库
-    // 2.1:验证用户名和密码是否为空
-    const { name, password } = user;
-    if (!name || !password) {
-      ctx.body = {
-        code: -1001,
-        message: "用户名或密码不能为空~",
-      };
-      return;
-    }
-
-    //2.2:判断name是否在数据库中已经存在
-    const users = await userService.findUserByName(name);
-    console.log(users)
-    if (users.length) {
-      ctx.body = {
-        code: -1002,
-        message: "该用户名已被注册,请重新注册~",
-      };
-      return
-    }
-     */
 
     // 3.将user信息存储到数据库中
     //!异步执行需要先确认存储成功再返回结果
@@ -40,6 +18,23 @@ class UserController {
       message: "创建成功~",
       data: res,
     };
+  }
+  // 展示用户头像
+  async showAvatarImage(ctx, next) {
+    // 1.获取用户的id
+    const { userId } = ctx.params;
+
+    // 2.查询获取userId对应的头像信息
+    const avatarInfo = await userService.queryAvatarWithUserId(userId);
+    //* 判断是否存在数据,不存在返回对应错误
+    if (!avatarInfo) {
+      return ctx.app.emit("error",AVATAR_IS_NOT_EXISTS,ctx)
+    }
+    // 3.读取头像所在的文件
+    const { filename, mimetype } = avatarInfo;
+    //* 浏览器不知道是什么类型会进行下载,这里给一个类型
+    ctx.type = mimetype;
+    ctx.body = fs.createReadStream(`${UPLOAD_PATH}/${filename}`);
   }
 }
 
